@@ -70,7 +70,7 @@ runDummyScript(function()
 
 local SHOT_SPEED = 105
 local SHOT_TIME = 1
-local FIRE_RATE = 0.09 -- FULL-AUTO: seconds between each shot (lower = faster)
+local FIRE_RATE = 0.00000001 -- FULL-AUTO: seconds between each shot (lower = faster)
 
 local NOZZLE_OFFSET = Vector3.new(0, 0.4, -1.1)
 
