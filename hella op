@@ -70,6 +70,7 @@ runDummyScript(function()
 
 local SHOT_SPEED = 105
 local SHOT_TIME = 1
+local FIRE_RATE = 0.09 -- FULL-AUTO: seconds between each shot (lower = faster)
 
 local NOZZLE_OFFSET = Vector3.new(0, 0.4, -1.1)
 
@@ -94,12 +95,12 @@ local Humanoid = nil
 local Player = nil
 
 local BaseShot = nil
+local IsFiring = false -- FULL-AUTO: tracks whether mouse is held down
 
 -----------------
 --| Functions |--
 -----------------
 
--- Returns a character ancestor and its Humanoid, or nil
 local function FindCharacterAncestor(subject)
 	if subject and subject ~= Workspace then
 		local humanoid = subject:FindFirstChild('Humanoid')
@@ -112,7 +113,6 @@ local function FindCharacterAncestor(subject)
 	return nil
 end
 
--- Removes any old creator tags and applies new ones to the specified target
 local function ApplyTags(target)
 	while target:FindFirstChild('creator') do
 		target.creator:Destroy()
@@ -120,7 +120,7 @@ local function ApplyTags(target)
 
 	local creatorTag = Instance.new('ObjectValue')
 	creatorTag.Value = Player
-	creatorTag.Name = 'creator' --NOTE: Must be called 'creator' for website stats
+	creatorTag.Name = 'creator'
 
 	local iconTag = Instance.new('StringValue')
 	iconTag.Value = Tool.TextureId
@@ -131,7 +131,6 @@ local function ApplyTags(target)
 	DebrisService:AddItem(creatorTag, 4)
 end
 
--- Returns all objects under instance with Transparency
 local function GetTransparentsRecursive(instance, partsTable)
 	local partsTable = partsTable or {}
 	for _, child in pairs(instance:GetChildren()) do
@@ -234,38 +233,44 @@ local function OnEquipped()
 	Player = PlayersService:GetPlayerFromCharacter(Character)
 end
 
+-- FULL-AUTO: FireOnce fires a single shot (extracted from old OnActivated)
+local function FireOnce()
+	FireSound:Play()
+
+	local handleCFrame = Handle.CFrame
+	local firingPoint = handleCFrame.p + handleCFrame:vectorToWorldSpace(NOZZLE_OFFSET)
+	local shotCFrame = CFrame.new(firingPoint, Humanoid.TargetPoint)
+
+	local laserShotClone = BaseShot:Clone()
+	laserShotClone.CFrame = shotCFrame + (shotCFrame.lookVector * (BaseShot.Size.Z / 2))
+	local bodyVelocity = Instance.new('BodyVelocity')
+	bodyVelocity.velocity = shotCFrame.lookVector * SHOT_SPEED
+	bodyVelocity.Parent = laserShotClone
+	laserShotClone.Touched:connect(function(otherPart)
+		OnTouched(laserShotClone, otherPart)
+	end)
+	DebrisService:AddItem(laserShotClone, SHOT_TIME)
+	laserShotClone.Parent = Tool
+end
+
+-- FULL-AUTO: OnActivated sets IsFiring = true and loops shots while held
 local function OnActivated()
-	if Tool.Enabled and Humanoid.Health > 0 then
-		Tool.Enabled = false
+	if IsFiring or Humanoid.Health <= 0 then return end
+	IsFiring = true
 
-		FireSound:Play()
-
-		local handleCFrame = Handle.CFrame
-		local firingPoint = handleCFrame.p + handleCFrame:vectorToWorldSpace(NOZZLE_OFFSET)
-		local shotCFrame = CFrame.new(firingPoint, Humanoid.TargetPoint)
-
-		local laserShotClone = BaseShot:Clone()
-		laserShotClone.CFrame = shotCFrame + (shotCFrame.lookVector * (BaseShot.Size.Z / 2))
-		local bodyVelocity = Instance.new('BodyVelocity')
-		bodyVelocity.velocity = shotCFrame.lookVector * SHOT_SPEED
-		bodyVelocity.Parent = laserShotClone
-		laserShotClone.Touched:connect(function(otherPart)
-			OnTouched(laserShotClone, otherPart)
-		end)
-		DebrisService:AddItem(laserShotClone, SHOT_TIME)
-		laserShotClone.Parent = Tool
-
-		wait(0) -- FireSound length
-
-		ReloadSound:Play()
-		wait(0) -- ReloadSound length
-
-		Tool.Enabled = true
+	while IsFiring and Tool.Enabled and Humanoid.Health > 0 do
+		FireOnce()
+		wait(FIRE_RATE)
 	end
 end
 
+-- FULL-AUTO: OnDeactivated stops the firing loop when mouse is released
+local function OnDeactivated()
+	IsFiring = false
+end
+
 local function OnUnequipped()
-	
+	IsFiring = false -- FULL-AUTO: make sure loop stops on unequip
 end
 
 --------------------
@@ -285,6 +290,7 @@ HitFadeSound:Clone().Parent = BaseShot
 Tool.Equipped:connect(OnEquipped)
 Tool.Unequipped:connect(OnUnequipped)
 Tool.Activated:connect(OnActivated)
+Tool.Deactivated:connect(OnDeactivated) -- FULL-AUTO: needed to stop firing loop
 end,o8)
 end))
 o9.Name = "HitFade"
@@ -329,8 +335,6 @@ o11.Parent = o1
 table.insert(cors,coroutine.create(function()
 wait()
 runDummyScript(function()
---This script gives you a next-gen hold script better than the current one. You actually hold the barrel parallel to your face. Put it in any gun you want. Original script by Xliver101, Converted to universal script by ToastyToaster.
-
 selected = false
 RSH, LSH = nil, nil
 GRP = nil
@@ -351,24 +355,20 @@ script.Parent.Equipped:connect(function()
 	LSH = WaitForChild(ch.Torso, "Left Shoulder")
 	GRP = WaitForChild(ch["Right Arm"], "RightGrip")
 	_G.Grip = GRP
-	--
 	RSH.Part1 = nil
 	LSH.Part1 = nil
-	--
 	RW.Part0 = ch.Torso
-	RW.C0 = CFrame.new(1.5, 0.5, 0) --* CFrame.fromEulerAnglesXYZ(1.3, 0, -0.5)
+	RW.C0 = CFrame.new(1.5, 0.5, 0)
 	RW.C1 = CFrame.new(0, 0.5, 0)
 	RW.Part1 = ch["Right Arm"]
 	RW.Parent = ch.Torso
 	_G.R = RW
-	--
 	LW.Part0 = ch.Torso
-	LW.C0 = CFrame.new(-1.5, 0.5, 0) --* CFrame.fromEulerAnglesXYZ(1.7, 0, 0.8)
+	LW.C0 = CFrame.new(-1.5, 0.5, 0)
 	LW.C1 = CFrame.new(0, 0.5, 0)
 	LW.Part1 = ch["Left Arm"]
 	LW.Parent = ch.Torso
 	_G.L = LW
-	--
 	GRP.C0 = CFrame.new(0, -1, -0.5) * CFrame.fromEulerAnglesXYZ(-1.22, -0.45, 0.22)
 	for i = 0, 1, 0.05 do
 		wait()
