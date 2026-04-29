@@ -59,7 +59,6 @@ local NOZZLE_OFFSET = Vector3.new(0, 0.4, -1.1)
 local Character = nil
 local Humanoid  = nil
 local Player    = nil
-local Mouse     = nil
 local IsFiring  = false
 
 local RW  = Instance.new('Weld')
@@ -199,7 +198,7 @@ local function FireOnce()
 	FireSound:Play()
 	local handleCFrame  = Handle.CFrame
 	local firingPoint   = handleCFrame.p + handleCFrame:vectorToWorldSpace(NOZZLE_OFFSET)
-	local shotCFrame    = CFrame.new(firingPoint, Mouse.Hit.p)
+	local shotCFrame    = CFrame.new(firingPoint, Humanoid.TargetPoint)
 	local laserShotClone = BaseShot:Clone()
 	laserShotClone.CFrame = shotCFrame + (shotCFrame.lookVector * (BaseShot.Size.Z / 2))
 	local bodyVelocity = Instance.new('BodyVelocity')
@@ -257,28 +256,13 @@ local function ArmUnequip()
 end
 
 -----------------
---| Mouse Icon |--
------------------
-
-local MOUSE_ICON     = 'rbxasset://textures/GunCursor.png'
-local RELOADING_ICON = 'rbxasset://textures/GunWaitCursor.png'
-
-local function UpdateIcon()
-	if Mouse then
-		Mouse.Icon = Tool.Enabled and MOUSE_ICON or RELOADING_ICON
-	end
-end
-
------------------
 --| Events     |--
 -----------------
 
-Tool.Equipped:Connect(function(mouse)
-	Mouse     = mouse
+Tool.Equipped:Connect(function()
 	Character = Tool.Parent
 	Humanoid  = Character:WaitForChild('Humanoid')
 	Player    = Players:GetPlayerFromCharacter(Character)
-	UpdateIcon()
 	ArmEquip()
 end)
 
@@ -295,18 +279,12 @@ Tool.Deactivated:Connect(function()
 	IsFiring = false
 end)
 
-Tool.Changed:Connect(function(property)
-	if property == 'Enabled' then UpdateIcon() end
-end)
-
 Tool.Unequipped:Connect(function()
 	IsFiring = false
 	ArmUnequip()
-	if Mouse then Mouse.Icon = '' end
 	Character = nil
 	Humanoid  = nil
 	Player    = nil
-	Mouse     = nil
 end)
 
 -- Give to player
